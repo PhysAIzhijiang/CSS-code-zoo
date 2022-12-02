@@ -45,6 +45,9 @@ test_lib:
 	$(cmd)
 generate_css_code:
 	$(cmd)
+simulation:
+	$(cmd)
+#if it keep running. clean and rebuild weilei_lib
 #because I install it locally, i need to inform where the itpp lib is located
 #	export LD_LIBRARY_PATH="/home/weileizeng/.local/lib:$LD_LIBRARY_PATH" && 
 #This was moved to .bashrc
@@ -63,7 +66,7 @@ sbatch-dry-run:
 sbatch:
 	sbatch run_prod.sh
 srun:
-	srun -n 1 --cpus-per-task=32 --time=12:00:00 ./generate_css_code.out 
+	srun -n 1 --cpus-per-task=32 --time=24:00:00 ./generate_css_code.out 
 short:
 	srun -n 1 -q short --cpus-per-task=32 --time=1:00:00 ./generate_css_code.out 
 pkill-product:
@@ -83,3 +86,14 @@ dynamic:$(LIB_WEILEI_PATH)/libweilei.so
 data-statistics:
 	du -sh data/
 	ls data/ |wc -l
+
+show-result:
+	tail -n 31 run.log
+
+
+
+#The use of the -v flag in the command mounts the current working directory on the host (${PWD} in the example command) as /home/jovyan/work in the container. The server logs appear in the terminal.
+
+#Visiting http://<hostname>:4000/?token=<token> in a browser loads JupyterLab.
+jupyter:
+	docker run -it --rm --user 1011 --group-add users -p 4000:8888 -v "${PWD}":/home/jovyan/work jupyter/datascience-notebook:85f615d5cafa 
