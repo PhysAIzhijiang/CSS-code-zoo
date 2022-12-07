@@ -1,0 +1,4 @@
+outdated/
+*.o
+*.out
+*~

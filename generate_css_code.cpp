@@ -7,48 +7,30 @@ using json=nlohmann::json;
 //using namespace common;
 
 //int generate_css_code();
-int generate_css_code(int n, int Gx_row, int Gz_row);
+int generate_css_code(int n, int Gx_row, int Gz_row, int num_cores, std::string code_folder, int num_trials);
 
-int main(){
+int main(int args, char ** argv){
   std::cout<<" --------------------- begin generating CSS codes"<<std::endl;
-  //  generate_css_code();
-
+  itpp::Parser parser; parser.init(args,argv);
+  int n_start=5; parser.get(n_start,"n_start");
+  int n_end=10; parser.get(n_end,"n_end");
+  int num_cores=1; parser.get(num_cores,"num_cores");
+  std::string code_folder="../data/CSS-Codes/tmp/";
+  parser.get(code_folder,"code_folder");
+  int num_trials=num_cores*2;parser.get(num_cores,"num_cores");
+  int num_code_generated_total=0;
   //set up simulation
-  /*
-  for (int n=12;n<31;n++){
-    for ( int Gx_row = 5;Gx_row<n-1;Gx_row++){
-      for ( int Gz_row = 5; Gz_row < n-Gx_row-1 && Gz_row < Gx_row +3 ; Gz_row ++){
-
-  for (int n=7;n<12;n++){
-
-  for (int n=2;n<34;n++){  #didn't get up to 34 due to error (submatrix)
-    for ( int Gx_row = 2;Gx_row<n-1;Gx_row++){
-      for ( int Gz_row = 2; Gz_row < n-Gx_row && Gz_row < Gx_row +3 ; Gz_row ++){
-
-  for (int n=13;n<31;n++){
-
-  for (int n=29;n<31;n++){
-    for ( int Gx_row = 2;Gx_row<n-1;Gx_row++){
-      for ( int Gz_row = ( 2 > n-Gx_row - 2)? 2 : n-Gx_row - 2; Gz_row < n-Gx_row && Gz_row < Gx_row +3 ; Gz_row ++){ //start from k=2, then k = 1
-  for (int n=29;n<31;n++){
-    for ( int Gx_row = 2;Gx_row<n-1;Gx_row++){
-      for ( int Gz_row = 2 ; Gz_row < n-Gx_row && Gz_row < Gx_row +3 && n-Gx_row-Gz_row > 15; Gz_row ++){ //run for k > 15
-
-   */
-
-
-  for (int n=27;n<31;n++){
+  for (int n=n_start;n<n_end;n++){
     for ( int Gx_row = 2;Gx_row<n-1;Gx_row++){
       //	std::cout<<"n="<<n<<", Gx_row="<<Gx_row<<std::endl;
-      for ( int Gz_row = 2 ; Gz_row < n-Gx_row && Gz_row < Gx_row +3 && n-Gx_row-Gz_row > 22; Gz_row ++){ //run for k > 22
+      for ( int Gz_row = 2 ; Gz_row < n-Gx_row && Gz_row < Gx_row +3 ; Gz_row ++){ //run for k > 22
 	std::cout<<"n="<<n<<", Gx_row="<<Gx_row<<", Gz_row="<<Gz_row<<std::endl;
 
 	auto start = std::chrono::system_clock::now();
 	std::time_t start_time = std::chrono::system_clock::to_time_t(start);
 	std::cout <<".-.-.-.-.-.-.-.-.-.-.-."
 		  << "start computation at " << std::ctime(&start_time)<<std::endl;
-
-	generate_css_code(n,Gx_row,Gz_row);
+	num_code_generated_total += generate_css_code(n,Gx_row,Gz_row,num_cores,code_folder,num_trials);
 	//When G_x_row or Gz_row is too small (like 1), error occurs, probably get zero matrix somewhere
 
 	auto end = std::chrono::system_clock::now();
@@ -58,32 +40,28 @@ int main(){
       }
     }
   }
-  /*simulation log
-    run: n=8..13, Gx_row and Gz_row = 2..n-1
-    n=21..30
-    n=12..19
-   */
-  
+  std::cout<<num_code_generated_total<<" codes generated this time for n_start = "<<n_start<<std::endl;
   std::cout<<" --------------------- finish generating CSS codes"<<std::endl;
   return 0;
 }
 
 /*parameters to set up:
-  num_cores,32
-  num_trials, 10000
-  how many instances to save for each parameter set, 3
+  @param num_cores,32
+  @param num_trials, 10000
+  @param how many instances to save for each parameter set, 3
   data folder, ../data/CSS-Codes/run1
+  @return num_code_generated
  */
-int generate_css_code(int n, int Gx_row, int Gz_row){
+int generate_css_code(int n, int Gx_row, int Gz_row, int num_cores, std::string code_folder, int num_trials){
   //int generate_css_code(){
   int seed = common::get_time(3)+100;//+seed;
   itpp::RNG_reset(seed);
   itpp::RNG_randomize();
+  int num_code_generated=0;
 
-  int num_cores = 32; //32
-  int num_trials = num_cores * 10;
+  //  int num_cores = 16; //32
+  //  int num_trials = num_cores * 10;
   int dx_max=0, dz_max=0;
-  //#pragma omp parallel for num_threads(4)
 #pragma omp parallel for schedule(guided) num_threads(num_cores)
   for ( int i =0; i < num_trials; i ++ ){
     //random CSS code
@@ -96,46 +74,22 @@ int generate_css_code(int n, int Gx_row, int Gz_row){
 
     codeR.getGoodCode(0);//0 for disabling debug
     codeR.dist();
-    /* if ( not codeR.is_valid() ){
-      std::cout<<"The code is not valid"<<std::endl;
-    }else{
-       //       try{
-       codeR.dist();
-	 //       }catch(std::exception e){
-	 //	 std::cout<<"The code is not valid. probably zero matrix"<<std::endl;
-	 //       }
-	 }*/
     //the following part should be in critical in the beginning, after some run it is okay to remove
-//#pragma omp critical
+#pragma omp critical
     {
-      /*
-    if (dx_max <= codeR.dx)  {
-      dx_max = codeR.dx;
-      codeR.k=codeR.n - codeR.Gx.row_rank() - codeR.Gz.row_rank();
-      std::cout<<"dx_max = "<<dx_max<<", dz_max = "<<dz_max;
-      std::cout<<"; "<<codeR<<std::endl;
-    }
-    if (dz_max <= codeR.dz)  {
-      dz_max = codeR.dz ;
-      codeR.k=codeR.n - codeR.Gx.row_rank() - codeR.Gz.row_rank();
-      std::cout<<"dx_max = "<<dx_max<<", dz_max = "<<dz_max;
-      std::cout<<"; "<<codeR<<std::endl;
-    }
-      */
-    //check if file exists. saev the code if not
+      //check if file exists. save the code if not
     //set up filename
-    std::string title_str="../data/CSS-Codes/run1/";
+      //    std::string title_str="../data/CSS-Codes/run2/";
     int d =(codeR.dx < codeR.dz)? codeR.dx : codeR.dz ;
     int Gx_row_rank = codeR.Gx.row_rank(), Gz_row_rank = codeR.Gz.row_rank();
     codeR.k=codeR.n - Gx_row_rank - Gz_row_rank;
-    std::string filename_prefix=title_str
+    std::string filename_prefix=code_folder
       +"n"+std::to_string(codeR.n)+"k"+std::to_string(codeR.k)+"d"+std::to_string(d)
       +"-x"+std::to_string(Gx_row_rank)+"z"+std::to_string(Gz_row_rank)
       +"dx"+std::to_string(codeR.dx)+"dz"+std::to_string(codeR.dz);
 
     FILE *f;
-    for (int j = 0; j<10; j++){//save three instances for the same parameter
-      //      std::cout<<"debug:1"<<std::endl;
+    for (int j = 0; j<10; j++){//save 10 instances for the same parameter
       //filename_prefix = filename_prefix + "-"+std::to_string(j);
       char filename_Gx[256],filename_Gz[256],filename_json[256];
       sprintf(filename_Gx,"%s-%iGx.mm",filename_prefix.c_str(),j);
@@ -149,11 +103,22 @@ int generate_css_code(int n, int Gx_row, int Gz_row){
       //std::cout<<j<<std::endl;
       if ((f = fopen(filename, "r")) == NULL) {
 	//save the code if file doesn't exist yet
-	//std::cout<<"saving code: "<<filename<<std::endl;
-	//codeR.save(filename_prefix + "-" + std::to_string(j) );
-	//itpp::GF2mat Gt = codeR.Gz;
-	//	std::cout<<filename_Gz<<std::endl;
-	GF2mat_to_MM(codeR.Gz,filename_Gx);
+
+	/*don't check here. break the parallel set up
+	//check 10 times before add the code
+	int d=codeR.d;
+	for (int i_check=0;i_check < 10; i_check ++){
+	  codeR.dist();
+	  if ( codeR.d < d){
+	    //discard the code
+	    std::cout<<"d="<<d<<", code.d="<<codeR.d<<std::endl;
+	    continue;
+	  }else{
+	    std::cout<<".";
+	  }
+	}
+	*/
+	GF2mat_to_MM(codeR.Gx,filename_Gx);
 	GF2mat_to_MM(codeR.Gz,filename_Gz);
 
 	//save parameters into json file
@@ -174,31 +139,20 @@ int generate_css_code(int n, int Gx_row, int Gz_row){
 	std::ofstream filejson(filename_json);
 	filejson << j_object_t;
 	filejson.close();
-
+	
+	num_code_generated++;
 	std::cout<<"saved code to "<<filename_json<<std::endl;
 	break;
       }else{
 	//std::cout<<"the file exist: "<<filename_prefix<<std::endl;
 	fclose(f);
       }
-    }
+    }//for j
     
-    }
-    //    std::cout<<codeR.Gx<<std::endl;
-    //std::cout<<"run"<<i<<", dx="<<codeR.dx<<std::endl;
-  }
-  //  std::cout<<"dx_max = "<<dx_max<<", dz_max = "<<dz_max<<std::endl;
+    }//pragma critical
+  }// pragma parallel for
   
-  //  codeR.set_up_CxCz(); // no need to do it. already genrated in GetRandomCode().
-  
-
-  /*std::cout<<codeR.is_C_defined<<std::endl;
-  std::cout<<codeR.Gx<<std::endl;
-  std::cout<<codeR.Gz<<std::endl;
-  std::cout<<codeR.Cx<<std::endl;
-  std::cout<<codeR.Cz<<std::endl;
-  */
-  return 0;
+  return num_code_generated;
 }
 
 
